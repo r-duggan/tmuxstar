@@ -17,7 +17,7 @@ enum Cmd {
         path:Option<String>,
         #[arg(long, default_value="white")]
         label_fg: String,
-        #[arg(long, default_value=" ")]
+        #[arg(long, default_value=" ")]
         icon: String,
     },
     Time {
