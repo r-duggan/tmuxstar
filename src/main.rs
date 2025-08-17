@@ -12,7 +12,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Cmd {
-    Left {
+    Git {
         #[arg(long)]
         path:Option<String>,
         #[arg(long, default_value="white")]
@@ -20,21 +20,34 @@ enum Cmd {
         #[arg(long, default_value=" ")]
         icon: String,
     },
-    Right,
+    Time {
+        #[arg(long, default_value="%Y-%m-%d %I:%M%p")]
+        format: String,
+        #[arg(long, default_value="󰸗 ")]
+        icon: String,
+    },
 }
 
-fn print_time() {
+fn print_time(format: &str, icon: &str) {
     let now = Local::now();
-    let formatted = now.format("%Y-%m-%d %I:%M:%S%p").to_string();
-    println!("{}", formatted);
+    let s = now.format(format).to_string();
+    if icon.is_empty() {
+        print!("{s}");
+    } else {
+        print!("{icon}{s}");
+    }
 }
 
 fn git_ok(path: &str, args: &[&str]) -> Option<String> {
-    let out = Command::new("git").args(["-C", path]).args(args).output().ok()?;
+    let out = Command::new("git")
+        .args(["-C", path])
+        .args(args)
+        .output()
+        .ok()?;                    // could not spawn → None
     if !out.status.success() {
-        return None;
+        return None;               // non-zero exit → None
     }
-    let s = String::from_utf8_lossy(&out.stdout).into_owned();
+    let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
     if s.is_empty() { None } else { Some(s) }
 }
 
@@ -46,15 +59,15 @@ fn is_repo(path: &str) -> bool {
 }
 
 fn repo_root_name(path: &str) -> Option<String> {
-    let root = git_ok(path, &["rev-parse", "--show-top-level"])?;
+    let root = git_ok(path, &["rev-parse", "--show-toplevel"])?;
     Some(Path::new(&root).file_name()?.to_string_lossy().to_string())
 }
 
 fn head_name(path: &str) -> Option<String> {
     if let Some(mut h) = git_ok(path, &["rev-parse", "--abbrev-ref", "HEAD"]) {
-        if h == "HEAD" || h.is_empty() {
-            if let Some(descr) = git_ok(path, &["describe", "--contains", "--all", "HEAD"]) {
-                h = descr;
+        if h == "HEAD" {
+            if let Some(d) = git_ok(path, &["describe", "--contains", "--all", "HEAD"]) {
+                h = d;
             }
         }
         if !h.is_empty() {
@@ -105,38 +118,37 @@ fn tmux_fg(color: &str) -> String {
     format!("#[fg={}]", color)
 }
 
-fn print_left(path: &str, label_fg: &str, icon: &str) {
+fn print_git(path: &str, label_fg: &str, icon: &str) {
     if !is_repo(path) {
-        print!("");
         return;
     }
-    let Some(project) = repo_root_name(path) else { println!(""); return;};
-    let Some(branch) = head_name(path) else { println!("");return;};
+    let Some(project) = repo_root_name(path) else { return; };
+    let Some(branch)  = head_name(path)      else { return; };
 
-    let state = repo_state(path);
-    let c_icon = state_color_fg(state);
+    let state  = repo_state(path);
+    let c_icon = state_color_fg(state); // hex like "#50fa7b"
 
     let out = format!(
-    "{icon_color}{icon}{restore}{project}({branch})",
-        icon_color = tmux_fg(c_icon),
-        icon = icon,
-        restore = tmux_fg(label_fg),
-        project = project,
-        branch = branch
+        "{icon_col}{icon}{restore}{project}({branch})",
+        icon_col = tmux_fg(c_icon),
+        icon     = icon,
+        restore  = tmux_fg(label_fg),
+        project  = project,
+        branch   = branch,
     );
 
-    println!("{out}")
+    println!("{out}");
 }
 
 fn main() {
     let cli = Cli::parse();
     match cli.cmd {
-        Cmd::Left { path, label_fg, icon } => {
+        Cmd::Git { path, label_fg, icon } => {
             let p = path.unwrap_or_else(|| ".".into());
-            print_left(&p, &label_fg, &icon);
+            print_git(&p, &label_fg, &icon);
         }
-        Cmd::Right => {
-            print_time();
+        Cmd::Time { format, icon } => {
+            print_time(&format, &icon);
         }
     }
 }
