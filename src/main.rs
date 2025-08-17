@@ -32,9 +32,9 @@ fn print_time(format: &str, icon: &str) {
     let now = Local::now();
     let s = now.format(format).to_string();
     if icon.is_empty() {
-        print!("{s}");
+        print!("{s} ");
     } else {
-        print!("{icon}{s}");
+        print!("{icon}{s} ");
     }
 }
 
@@ -129,7 +129,7 @@ fn print_git(path: &str, label_fg: &str, icon: &str) {
     let c_icon = state_color_fg(state); // hex like "#50fa7b"
 
     let out = format!(
-        "{icon_col}{icon}{restore}{project}({branch})",
+        "{icon_col}{icon}{restore}{project}({branch}) ",
         icon_col = tmux_fg(c_icon),
         icon     = icon,
         restore  = tmux_fg(label_fg),
