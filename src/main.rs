@@ -26,6 +26,7 @@ enum Cmd {
         #[arg(long, default_value="󰸗 ")]
         icon: String,
     },
+
 }
 
 fn print_time(format: &str, icon: &str) {
